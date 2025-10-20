@@ -1,6 +1,8 @@
 # StateMachines::Mermaid
 
-[![Build Status](https://github.com/state-machines/state_machines-mermaid/workflows/Ruby/badge.svg)](https://github.com/state-machines/state_machines-mermaid/actions)
+[![CI](https://github.com/state-machines/state_machines-mermaid/actions/workflows/ruby.yml/badge.svg)](https://github.com/state-machines/state_machines-mermaid/actions/workflows/ruby.yml)
+[![Gem Version](https://img.shields.io/gem/v/state_machines-mermaid.svg)](https://rubygems.org/gems/state_machines-mermaid)
+[![Supported Ruby](https://img.shields.io/badge/ruby-%E2%89%A5%203.3.0-orange.svg)](https://www.ruby-lang.org)
 
 Mermaid diagram renderer for [state_machines](https://github.com/state-machines/state_machines). Generate Mermaid state diagrams from your state machines.
 
