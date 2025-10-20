@@ -98,26 +98,28 @@ module StateMachines
         base_label = transition.label
         label_text = base_label if base_label && !base_label.empty?
 
+        guard_fragment = ''
         if options[:show_conditions] && metadata
           condition_tokens = build_condition_tokens(metadata[:conditions])
-          if condition_tokens.any?
-            guard_str = condition_tokens.join(' && ')
-            label_text = label_text.empty? ? "[#{guard_str}]" : "#{label_text} [#{guard_str}]"
-          end
+          guard_fragment = "[#{condition_tokens.join(' && ')}]" if condition_tokens.any?
         end
 
+        action_fragment = ''
         if options[:show_callbacks] && metadata
           callback_tokens = build_callback_tokens(metadata[:callbacks])
-          if callback_tokens.any?
-            action_str = callback_tokens.join(', ')
-            label_text = label_text.empty? ? "/ #{action_str}" : "#{label_text} / #{action_str}"
-          end
+          action_fragment = "/ #{callback_tokens.join(', ')}" if callback_tokens.any?
         end
 
-        if label_text.empty?
+        parts = []
+        parts << label_text unless label_text.empty?
+        parts << guard_fragment unless guard_fragment.empty?
+        parts << action_fragment unless action_fragment.empty?
+        label = parts.join(' ').strip
+
+        if label.empty?
           "#{from_node} --> #{to_node}"
         else
-          "#{from_node} --> #{to_node} : #{label_text}"
+          "#{from_node} --> #{to_node} : #{label}"
         end
       end
 
@@ -127,11 +129,11 @@ module StateMachines
         tokens = []
         Array(conditions[:if]).each do |token|
           next if token.nil? || token.to_s.empty?
-          tokens << "if: #{token}"
+          tokens << "if #{token}"
         end
         Array(conditions[:unless]).each do |token|
           next if token.nil? || token.to_s.empty?
-          tokens << "unless: #{token}"
+          tokens << "unless #{token}"
         end
         tokens
       end
@@ -143,7 +145,7 @@ module StateMachines
         callbacks.each do |type, names|
           Array(names).each do |name|
             next if name.nil? || name.to_s.empty?
-            tokens << "#{type}: #{format_callback_reference(name)}"
+            tokens << "#{type} #{format_callback_reference(name)}"
           end
         end
         tokens

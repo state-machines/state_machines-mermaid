@@ -100,8 +100,8 @@ Output includes conditions:
 stateDiagram-v2
   idle : idle
   combat : combat
-  idle --> combat : attack (if: has_weapon?)
-  combat --> idle : rest (if: !in_danger?)
+  idle --> combat : attack [if has_weapon?]
+  combat --> idle : rest [unless in_danger?]
 ```
 
 ### Show Callbacks
