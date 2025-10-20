@@ -41,8 +41,8 @@ class MermaidRendererTest < Minitest::Test
     
     output = io.string
     assert_includes output, "idle --> combat : engage"
-    assert_includes output, "(if:"
-    assert_includes output, "(if: !spell_locked?)"
+    assert_includes output, "[if: can_fight?]"
+    assert_includes output, "[unless: spell_locked?]"
   end
 
   def test_final_states
@@ -81,7 +81,7 @@ class MermaidRendererTest < Minitest::Test
     )
     
     output = io.string
-    assert_includes output, "(action:"
+    assert_includes output, " / before:"
     assert_includes output, "cast_spell"
   end
 

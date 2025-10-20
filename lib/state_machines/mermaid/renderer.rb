@@ -93,28 +93,31 @@ module StateMachines
         from_node = format_node_id(transition.source_state_id)
         to_node = format_node_id(transition.target_state_id)
 
-        label_parts = []
+        label_text = ''
 
-        label = transition.label
-        label_parts << label if label && !label.empty?
+        base_label = transition.label
+        label_text = base_label if base_label && !base_label.empty?
 
         if options[:show_conditions] && metadata
           condition_tokens = build_condition_tokens(metadata[:conditions])
-          label_parts << "(if: #{condition_tokens.join(' && ')})" if condition_tokens.any?
+          if condition_tokens.any?
+            guard_str = condition_tokens.join(' && ')
+            label_text = label_text.empty? ? "[#{guard_str}]" : "#{label_text} [#{guard_str}]"
+          end
         end
 
         if options[:show_callbacks] && metadata
           callback_tokens = build_callback_tokens(metadata[:callbacks])
-          label_parts << "(action: #{callback_tokens.join(', ')})" if callback_tokens.any?
+          if callback_tokens.any?
+            action_str = callback_tokens.join(', ')
+            label_text = label_text.empty? ? "/ #{action_str}" : "#{label_text} / #{action_str}"
+          end
         end
 
-        label_text = label_parts.join(' ')
-        label_text = nil if label_text.empty?
-
-        if label_text
-          "#{from_node} --> #{to_node} : #{label_text}"
-        else
+        if label_text.empty?
           "#{from_node} --> #{to_node}"
+        else
+          "#{from_node} --> #{to_node} : #{label_text}"
         end
       end
 
@@ -124,11 +127,11 @@ module StateMachines
         tokens = []
         Array(conditions[:if]).each do |token|
           next if token.nil? || token.to_s.empty?
-          tokens << token.to_s
+          tokens << "if: #{token}"
         end
         Array(conditions[:unless]).each do |token|
           next if token.nil? || token.to_s.empty?
-          tokens << "!#{token}"
+          tokens << "unless: #{token}"
         end
         tokens
       end
@@ -140,10 +143,27 @@ module StateMachines
         callbacks.each do |type, names|
           Array(names).each do |name|
             next if name.nil? || name.to_s.empty?
-            tokens << "#{type}: #{name}"
+            tokens << "#{type}: #{format_callback_reference(name)}"
           end
         end
         tokens
+      end
+
+      def format_callback_reference(callback)
+        case callback
+        when Symbol, String
+          callback.to_s
+        when Proc, Method
+          if callback.respond_to?(:source_location) && callback.source_location
+            file, line = callback.source_location
+            filename = File.basename(file) if file
+            "lambda@#{filename}:#{line}"
+          else
+            'lambda'
+          end
+        else
+          callback.to_s
+        end
       end
 
       def format_node_id(node_id)
