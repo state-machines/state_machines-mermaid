@@ -63,17 +63,16 @@ This generates:
 
 ```mermaid
 stateDiagram-v2
-    %% Order status State Machine
-
-    [*] --> pending
-    delivered --> [*]
-    cancelled --> [*]
-
-    pending --> processing : process
-    processing --> shipped : ship
-    shipped --> delivered : deliver
-    pending --> cancelled : cancel
-    processing --> cancelled : cancel
+  pending : pending
+  processing : processing
+  shipped : shipped
+  delivered : delivered
+  cancelled : cancelled
+  pending --> processing : process
+  processing --> shipped : ship
+  shipped --> delivered : deliver
+  pending --> cancelled : cancel
+  processing --> cancelled : cancel
 ```
 
 ### With Conditions
@@ -99,12 +98,10 @@ Output includes conditions:
 
 ```mermaid
 stateDiagram-v2
-    %% Character status State Machine
-
-    [*] --> idle
-
-    idle --> combat : attack [if: has_weapon?]
-    combat --> idle : rest [unless: in_danger?]
+  idle : idle
+  combat : combat
+  idle --> combat : attack (if: has_weapon?)
+  combat --> idle : rest (if: !in_danger?)
 ```
 
 ### Show Callbacks
