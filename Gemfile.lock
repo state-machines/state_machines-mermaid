@@ -58,7 +58,7 @@ GEM
     mermaid (0.0.6)
       diagram (>= 0.3.4)
       zeitwerk
-    minitest (5.25.5)
+    minitest (5.27.0)
     minitest-reporters (1.7.1)
       ansi
       builder
@@ -93,7 +93,7 @@ DEPENDENCIES
   debug
   diagram (~> 0.3.4)
   mermaid (~> 0.0.6)
-  minitest (>= 5.6.0)
+  minitest (= 5.27.0)
   minitest-reporters
   rake
   state_machines (~> 0.100.4)
@@ -101,4 +101,4 @@ DEPENDENCIES
   state_machines-mermaid!
 
 BUNDLED WITH
-   2.6.9
+   2.7.2
