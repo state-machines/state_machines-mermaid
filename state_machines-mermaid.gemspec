@@ -16,7 +16,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ['lib']
 
   spec.add_dependency 'state_machines', '>= 0.100.4'
-  spec.add_dependency 'state_machines-diagram', '>= 0.1.0'
+  spec.add_dependency 'state_machines-diagram', '>= 0.2.0'
   spec.add_dependency 'mermaid'
   
   spec.add_development_dependency 'bundler'

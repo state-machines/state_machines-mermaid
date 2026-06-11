@@ -126,16 +126,11 @@ module StateMachines
       def build_condition_tokens(conditions)
         return [] unless conditions.is_a?(Hash)
 
-        tokens = []
-        Array(conditions[:if]).each do |token|
-          next if token.nil? || token.to_s.empty?
-          tokens << "if #{token}"
+        %i[if unless].flat_map do |kind|
+          Array(conditions[kind]).filter_map do |token|
+            "#{kind} #{token}" unless token.nil? || token.to_s.empty?
+          end
         end
-        Array(conditions[:unless]).each do |token|
-          next if token.nil? || token.to_s.empty?
-          tokens << "unless #{token}"
-        end
-        tokens
       end
 
       def build_callback_tokens(callbacks)
@@ -153,16 +148,8 @@ module StateMachines
 
       def format_callback_reference(callback)
         case callback
-        when Symbol, String
-          callback.to_s
         when Proc, Method
-          if callback.respond_to?(:source_location) && callback.source_location
-            file, line = callback.source_location
-            filename = File.basename(file) if file
-            "lambda@#{filename}:#{line}"
-          else
-            'lambda'
-          end
+          StateMachines::Diagram::Builder.callable_label(callback)
         else
           callback.to_s
         end
@@ -173,19 +160,18 @@ module StateMachines
       end
 
       def filter_mermaid_for_state(mermaid_syntax, state_name)
-        lines = mermaid_syntax.split("\n")
-        relevant_lines = lines.select do |line|
-          line.include?(state_name) || line.start_with?("stateDiagram")
-        end
-        relevant_lines.join("\n")
+        filter_mermaid_lines(mermaid_syntax, state_name)
       end
       
       def filter_mermaid_for_event(mermaid_syntax, event_name)
-        lines = mermaid_syntax.split("\n")
-        relevant_lines = lines.select do |line|
-          line.include?(event_name) || line.start_with?("stateDiagram")
-        end
-        relevant_lines.join("\n")
+        filter_mermaid_lines(mermaid_syntax, event_name)
+      end
+
+      # Keeps only the diagram header and the lines mentioning the given term
+      def filter_mermaid_lines(mermaid_syntax, term)
+        mermaid_syntax.split("\n").select do |line|
+          line.include?(term) || line.start_with?("stateDiagram")
+        end.join("\n")
       end
     end
   end

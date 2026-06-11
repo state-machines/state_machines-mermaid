@@ -4,7 +4,7 @@ PATH
     state_machines-mermaid (0.1.0)
       mermaid
       state_machines (>= 0.100.4)
-      state_machines-diagram (>= 0.1.0)
+      state_machines-diagram (>= 0.2.0)
 
 GEM
   remote: https://rubygems.org/
@@ -86,7 +86,7 @@ GEM
       io-console (~> 0.5)
     ruby-progressbar (1.13.0)
     state_machines (0.202.0)
-    state_machines-diagram (0.1.0)
+    state_machines-diagram (0.2.0)
       diagram (~> 0.3.4)
       state_machines (~> 0.100, >= 0.100.4)
     stringio (3.1.7)
@@ -95,6 +95,7 @@ GEM
 PLATFORMS
   arm64-darwin-23
   arm64-darwin-24
+  arm64-darwin-25
   x86_64-linux
 
 DEPENDENCIES
@@ -107,7 +108,7 @@ DEPENDENCIES
   padded_cell (~> 0.2)
   rake
   state_machines (>= 0.100.4)
-  state_machines-diagram (~> 0.1.0)
+  state_machines-diagram (~> 0.2)
   state_machines-mermaid!
 
 BUNDLED WITH
