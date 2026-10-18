@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.description   = %q(Mermaid diagrams for state machines. Adds Mermaid diagram generation to state machines using the diagram gem)
   spec.homepage      = 'https://github.com/state-machines/state_machines-mermaid'
   spec.license       = 'MIT'
-  spec.required_ruby_version = '>= 3.3.0'
+  spec.required_ruby_version = '>= 4.0'
 
   spec.files         = Dir['{lib}/**/*', 'LICENSE.txt', 'README.md']
   spec.test_files    = Dir['test/**/*']
