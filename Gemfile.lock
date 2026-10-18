@@ -23,6 +23,7 @@ GEM
       dry-types (>= 1.0)
       json
       zeitwerk (>= 2.6)
+    drb (2.2.3)
     dry-core (1.2.0)
       concurrent-ruby (~> 1.0)
       logger
@@ -58,15 +59,22 @@ GEM
     mermaid (0.0.6)
       diagram (>= 0.3.4)
       zeitwerk
-    minitest (5.27.0)
+    minitest (6.0.6)
+      drb (~> 2.0)
+      prism (~> 1.5)
     minitest-reporters (1.7.1)
       ansi
       builder
       minitest (>= 5.0)
       ruby-progressbar
+    padded_cell (0.2.0-arm64-darwin)
+      minitest (~> 6.0)
+    padded_cell (0.2.0-x86_64-linux-gnu)
+      minitest (~> 6.0)
     pp (0.6.2)
       prettyprint
     prettyprint (0.2.0)
+    prism (1.9.0)
     psych (5.2.6)
       date
       stringio
@@ -85,16 +93,18 @@ GEM
     zeitwerk (2.8.3)
 
 PLATFORMS
+  arm64-darwin-23
   arm64-darwin-24
-  ruby
+  x86_64-linux
 
 DEPENDENCIES
   bundler
   debug
   diagram (~> 0.3.4)
   mermaid (~> 0.0.6)
-  minitest (= 5.27.0)
+  minitest (~> 6.0)
   minitest-reporters
+  padded_cell (~> 0.2)
   rake
   state_machines (>= 0.100.4)
   state_machines-diagram (~> 0.1.0)
