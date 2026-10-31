@@ -1,0 +1,11 @@
+{
+  "bootstrap-sha": "2aa1f4f14626ab073706fd76aef5362903f31507",
+  "packages": {
+    ".": {
+      "release-type": "ruby",
+      "package-name": "state_machines-mermaid",
+      "version-file": "lib/state_machines/mermaid/version.rb",
+      "bump-minor-pre-major": true
+    }
+  }
+}
