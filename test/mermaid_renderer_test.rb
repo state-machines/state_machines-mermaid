@@ -46,12 +46,23 @@ class MermaidRendererTest < Minitest::Test
   end
 
   def test_final_states
+    klass = Class.new do
+      attr_accessor :state
+
+      state_machine :state, initial: :idle do
+        event :finish do
+          transition idle: :done
+        end
+      end
+    end
+
     io = StringIO.new
-    StateMachines::Mermaid::Renderer.draw_machine(Character.state_machine(:status), io: io)
+    StateMachines::Mermaid::Renderer.draw_machine(klass.state_machine(:state), io: io)
     
     output = io.string
-    # The mermaid gem doesn't add [*] for final states by default
-    assert_includes output, "dead : dead"
+    assert_includes output, "done : done"
+    assert_includes output, "[*] --> idle"
+    assert_includes output, "done --> [*]"
   end
 
   def test_multiple_from_states
@@ -143,11 +154,109 @@ class MermaidRendererTest < Minitest::Test
     StateMachines::Mermaid::Renderer.draw_machine(klass.state_machine(:status), io: io)
     
     output = io.string
-    # The mermaid gem doesn't sanitize IDs by default
-    assert_includes output, "waiting-for-input"
-    assert_includes output, "processing/data"
-    assert_includes output, "error!"
-    assert_includes output, "waiting-for-input --> processing/data"
+    assert_includes output, 'state "waiting-for-input" as state_77616974696e672d666f722d696e707574'
+    assert_includes output, 'state "processing/data" as state_70726f63657373696e672f64617461'
+    assert_includes output, 'state "error!" as state_6572726f7221'
+    assert_includes output, 'state_77616974696e672d666f722d696e707574 --> state_70726f63657373696e672f64617461'
+  end
+
+  def test_aliases_state_grammar_keywords_and_alias_lookalikes
+    klass = Class.new do
+      attr_accessor :status
+
+      state_machine :status, initial: :idle do
+        event :go do
+          transition idle: :end
+        end
+
+        event :jump do
+          transition idle: :state_65
+        end
+      end
+    end
+
+    io = StringIO.new
+    StateMachines::Mermaid::Renderer.draw_machine(klass.state_machine(:status), io: io)
+
+    output = io.string
+    assert_includes output, 'state "end" as state_656e64'
+    assert_includes output, 'idle --> state_656e64 : go'
+    assert_includes output, 'state "state_65" as state_73746174655f3635'
+    refute_match(/^\s+end\b/, output)
+  end
+
+  def test_encodes_text_mermaid_would_read_as_syntax
+    klass = Class.new do
+      attr_accessor :status
+
+      state_machine :status, initial: :idle do
+        event :'say "hi"; # now' do
+          transition idle: :'a"b'
+        end
+      end
+    end
+
+    io = StringIO.new
+    StateMachines::Mermaid::Renderer.draw_machine(klass.state_machine(:status), io: io)
+
+    output = io.string
+    assert_includes output, 'state "a#34;b" as state_612262'
+    assert_includes output, 'idle --> state_612262 : say #34;hi#34;#59; #35; now'
+    refute_includes output, '\\"'
+  end
+
+  def test_draw_state_keeps_the_transitions_of_an_aliased_state
+    klass = Class.new do
+      attr_accessor :status
+
+      state_machine :status, initial: :idle do
+        event :wait do
+          transition idle: :'waiting-for-input'
+        end
+
+        event :resume do
+          transition 'waiting-for-input': :idle
+        end
+
+        event :sleep do
+          transition idle: :asleep
+        end
+      end
+    end
+
+    io = StringIO.new
+    machine = klass.state_machine(:status)
+    StateMachines::Mermaid::Renderer.draw_state(machine.states[:'waiting-for-input'], nil, {}, io)
+
+    output = io.string
+    waiting = 'state_77616974696e672d666f722d696e707574'
+    assert_includes output, "idle --> #{waiting} : wait"
+    assert_includes output, "#{waiting} --> idle : resume"
+    refute_includes output, 'asleep'
+  end
+
+  def test_draw_event_keeps_only_its_transitions
+    klass = Class.new do
+      attr_accessor :status
+
+      state_machine :status, initial: :idle do
+        event :run do
+          transition idle: :running
+        end
+
+        event :run_fast do
+          transition idle: :sprinting
+        end
+      end
+    end
+
+    io = StringIO.new
+    machine = klass.state_machine(:status)
+    StateMachines::Mermaid::Renderer.draw_event(machine.events[:run], nil, {}, io)
+
+    output = io.string
+    assert_includes output, 'idle --> running : run'
+    refute_includes output, 'sprinting'
   end
 
   def test_dragon_age_progression
@@ -188,6 +297,33 @@ class MermaidRendererTest < Minitest::Test
     
     # Check that at least some transitions exist
     assert output.include?("-->"), "Should have transitions"
+  end
+
+  def test_renders_coordinated_state_guards
+    klass = Class.new do
+      attr_accessor :state, :gate
+
+      state_machine :gate, initial: :locked do
+        event :unlock do
+          transition locked: :unlocked
+        end
+      end
+
+      state_machine :state, initial: :idle do
+        event :run do
+          transition idle: :running, if_state: { gate: :unlocked }
+        end
+      end
+    end
+
+    io = StringIO.new
+    StateMachines::Mermaid::Renderer.draw_machine(
+      klass.state_machine(:state),
+      io: io,
+      show_conditions: true
+    )
+
+    assert_includes io.string, '[if_state gate=unlocked]'
   end
 
   def test_all_character_types_render_properly

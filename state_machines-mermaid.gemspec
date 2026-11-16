@@ -15,9 +15,10 @@ Gem::Specification.new do |spec|
   spec.test_files    = Dir['test/**/*']
   spec.require_paths = ['lib']
 
-  spec.add_dependency 'state_machines', '>= 0.100.4'
-  spec.add_dependency 'state_machines-diagram', '>= 0.2.0'
-  spec.add_dependency 'mermaid'
+  spec.add_dependency 'diagram', '>= 0.4'
+  spec.add_dependency 'state_machines', '>= 0.300'
+  spec.add_dependency 'state_machines-diagram', '>= 0.2.1'
+  spec.add_dependency 'mermaid', '>= 0.1'
   
   spec.add_development_dependency 'bundler'
   spec.add_development_dependency 'rake'

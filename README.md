@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/state-machines/state_machines-mermaid/actions/workflows/ruby.yml/badge.svg)](https://github.com/state-machines/state_machines-mermaid/actions/workflows/ruby.yml)
 [![Gem Version](https://img.shields.io/gem/v/state_machines-mermaid.svg)](https://rubygems.org/gems/state_machines-mermaid)
-[![Supported Ruby](https://img.shields.io/badge/ruby-%E2%89%A5%203.3.0-orange.svg)](https://www.ruby-lang.org)
+[![Supported Ruby](https://img.shields.io/badge/ruby-%E2%89%A5%204.0-orange.svg)](https://www.ruby-lang.org)
 
 Mermaid diagram renderer for [state_machines](https://github.com/state-machines/state_machines). Generate Mermaid state diagrams from your state machines.
 
@@ -46,17 +46,11 @@ class Order
     event :cancel do
       transition [:pending, :processing] => :cancelled
     end
-    
-    state :delivered, :cancelled do
-      def final?
-        true
-      end
-    end
   end
 end
 
-# Generate Mermaid diagram
-puts Order.state_machine(:status).draw
+# Writes the Mermaid diagram to $stdout (or io:)
+Order.state_machine(:status).draw
 ```
 
 This generates:
@@ -64,10 +58,13 @@ This generates:
 ```mermaid
 stateDiagram-v2
   pending : pending
+  [*] --> pending
   processing : processing
   shipped : shipped
   delivered : delivered
+  delivered --> [*]
   cancelled : cancelled
+  cancelled --> [*]
   pending --> processing : process
   processing --> shipped : ship
   shipped --> delivered : deliver
@@ -90,15 +87,16 @@ class Character
   end
 end
 
-# Generates transitions with conditions
-puts Character.state_machine(:status).draw
+# Generates transitions with their conditions
+Character.state_machine(:status).draw(show_conditions: true)
 ```
 
-Output includes conditions:
+Output includes conditions (state guards such as `if_state:` too):
 
 ```mermaid
 stateDiagram-v2
   idle : idle
+  [*] --> idle
   combat : combat
   idle --> combat : attack [if has_weapon?]
   combat --> idle : rest [unless in_danger?]
@@ -157,10 +155,14 @@ puts Dragon.state_machine(:mood).draw
 ## Features
 
 - Generates valid Mermaid state diagram syntax
-- Supports initial and final states
-- Shows transition conditions (if/unless)
+- Marks the initial state and final states (states with no way out)
+- Shows transition conditions (if/unless and state guards) with `show_conditions: true`
 - Handles self-transitions (loopbacks)
-- Sanitizes state names for Mermaid compatibility
+- State names Mermaid cannot read as plain names (`waiting-for-input`, or
+  keywords such as `end`) are aliased by their bytes in hex and shown by name:
+  `state "waiting-for-input" as state_77616974...`
+- Text Mermaid would read as syntax (quotes, `;`, `#`, line breaks) is written
+  as numeric entities (`#59;`), which Mermaid shows as the character
 - Optional callback visualization
 - Compatible with all state_machines features
 
