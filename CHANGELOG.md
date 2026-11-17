@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/state-machines/state_machines-mermaid/compare/state_machines-mermaid/v0.3.0...state_machines-mermaid/v0.4.0) (2026-11-17)
+
+
+### Features
+
+* require state_machines-diagram 0.4.0 for transition callbacks ([a9618ef](https://github.com/state-machines/state_machines-mermaid/commit/a9618ef0129cdf4f347347323786300f9b1fd2c5))
+
 ## [0.3.0](https://github.com/state-machines/state_machines-mermaid/compare/state_machines-mermaid/v0.2.1...state_machines-mermaid/v0.3.0) (2026-11-17)
 
 
