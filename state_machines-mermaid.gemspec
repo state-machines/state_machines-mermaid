@@ -19,7 +19,7 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency 'diagram', '>= 0.4'
   spec.add_dependency 'mermaid', '>= 0.1'
-  spec.add_dependency 'state_machines', '>= 0.300'
+  spec.add_dependency 'state_machines', '>= 0.303.0'
   spec.add_dependency 'state_machines-diagram', '>= 0.3.0'
 
   spec.add_development_dependency 'bundler'
