@@ -368,9 +368,30 @@ class MermaidRendererTest < Minitest::Test
     output = io.string
     assert_includes output, 'state "*" as state_253261'
     assert_includes output, 'idle --> state_253261 : go'
-    assert_includes output, 'state_253261 --> nil_state : #32;'
+    assert_includes output, 'state_253261 --> state_6e696c5f7374617465 : #32;'
+    assert_includes output, 'state "nil" as state_6e696c5f7374617465'
     assert_includes output, 'state "nil_state" as state_25366536393663356637333734363137343635'
-    assert_includes output, "nil_state --> state_25366536393663356637333734363137343635\n"
+    assert_includes output, "state_6e696c5f7374617465 --> state_25366536393663356637333734363137343635\n"
+  end
+
+  def test_a_nil_human_name_falls_back_to_the_name
+    klass = Class.new do
+      attr_accessor :state
+
+      state_machine :state, initial: :idle do
+        state :idle, human_name: ->(*) {}
+
+        event :go, human_name: ->(*) {} do
+          transition idle: :done
+        end
+      end
+    end
+
+    io = StringIO.new
+    StateMachines::Mermaid::Renderer.draw_machine(klass.state_machine(:state), io: io, human_names: true)
+
+    assert_includes io.string, 'idle : idle'
+    assert_includes io.string, 'idle --> done : go'
   end
 
   def test_refuses_an_empty_state_name

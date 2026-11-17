@@ -198,10 +198,13 @@ module StateMachines
 
       # A state id Mermaid reads as a plain name stays itself. Any other id,
       # a keyword of the state grammar included, is aliased by its bytes in
-      # hex, which keeps the alias stable whatever other states exist.
+      # hex, which keeps the alias stable whatever other states exist. So is
+      # the nil state's id: it is not the state's name, and drawn as a plain
+      # name it would show "nil_state" like the state named so.
       def safe_state_id(state_id)
         value = state_id.to_s
         return value if value.match?(::Mermaid::Renderer::PLAIN) && !value.match?(HEX_ALIAS) &&
+                        value != StateMachines::Diagram::Builder::NIL_STATE_ID &&
                         !::Mermaid::Renderers::StateRenderer::RESERVED.include?(value.downcase)
 
         "state_#{value.unpack1('H*')}"
