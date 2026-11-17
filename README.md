@@ -141,6 +141,15 @@ enters; it wraps what follows), then the after callbacks:
   idle --> combat : attack / before draw_weapon, around stance, after shout
 ```
 
+Callbacks a transition declares itself run closest to the state change: its
+before and around callbacks after the machine's, in the order written, its
+after callbacks before the machine's. With
+`transition idle: :combat, before: :aim, after: :roar` the line reads:
+
+```mermaid
+  idle --> combat : attack / before draw_weapon, around stance, before aim, after roar, after shout
+```
+
 ### Parts of a Machine
 
 The core draws one state, event or branch through the same renderer: the
