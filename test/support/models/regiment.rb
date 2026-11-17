@@ -3,7 +3,8 @@
 # Regiment with formation and morale states
 class Regiment
   attr_accessor :morale, :soldiers, :commander, :supplies, :casualties, :battle_experience, :threats, :enemy_positions,
-                :immediate_threats, :enemy_activity_level, :defending_critical_position, :battle_start_time, :pike_wall_ready
+                :immediate_threats, :enemy_activity_level, :defending_critical_position, :battle_start_time,
+                :pike_wall_ready
 
   def initialize
     @morale = 100
