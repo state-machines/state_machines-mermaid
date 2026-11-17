@@ -4,8 +4,8 @@ PATH
     state_machines-mermaid (0.3.0)
       diagram (>= 0.4)
       mermaid (>= 0.1)
-      state_machines (>= 0.303.0)
-      state_machines-diagram (>= 0.3.0)
+      state_machines (>= 0.304.0)
+      state_machines-diagram (>= 0.4.0)
 
 GEM
   remote: https://rubygems.org/
@@ -91,10 +91,10 @@ GEM
       lint_roller (~> 1.1)
       rubocop (>= 1.72.1)
     ruby-progressbar (1.13.0)
-    state_machines (0.303.0)
-    state_machines-diagram (0.3.0)
+    state_machines (0.304.0)
+    state_machines-diagram (0.4.0)
       diagram (>= 0.4)
-      state_machines (>= 0.303.0)
+      state_machines (>= 0.304.0)
     stringio (3.1.7)
     unicode-display_width (3.3.0)
       unicode-emoji (~> 4.3)
@@ -120,8 +120,8 @@ DEPENDENCIES
   rubocop-minitest (~> 0.34)
   rubocop-performance (~> 1.20)
   rubocop-rake (~> 0.6)
-  state_machines (>= 0.303.0)
-  state_machines-diagram (>= 0.3.0)
+  state_machines (>= 0.304.0)
+  state_machines-diagram (>= 0.4.0)
   state_machines-mermaid!
 
 BUNDLED WITH
