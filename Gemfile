@@ -10,7 +10,7 @@ platforms :mri do
   gem 'padded_cell', '~> 0.2'
 end
 
-gem 'state_machines', '>= 0.300'
-gem 'state_machines-diagram', '>= 0.2.1'
-gem 'mermaid', '>= 0.1'
 gem 'diagram', '>= 0.4'
+gem 'mermaid', '>= 0.1'
+gem 'state_machines', '>= 0.300'
+gem 'state_machines-diagram', '>= 0.3.0'

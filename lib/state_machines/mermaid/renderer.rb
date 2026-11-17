@@ -1,199 +1,144 @@
 # frozen_string_literal: true
 
+require 'json'
 require 'state_machines-diagram'
 require 'mermaid'
 
 module StateMachines
   module Mermaid
+    # Draws a machine, or the part of it one state, event or branch involves,
+    # as a Mermaid state diagram. Everything a draw needs travels with its
+    # builder: the renderer keeps no state between draws, so draws from
+    # several threads never see each other's diagrams.
     module Renderer
-      extend self
-
       # An alias of the generated form; a plain id of that form is aliased too,
       # so an alias never names another state.
       HEX_ALIAS = /\Astate_(?:\h\h)+\z/
 
-      # Cache recent metadata so we can enhance the Mermaid output with
-      # condition/callback details when the caller requests it.
-      def reset_metadata!
-        @last_state_metadata = nil
-        @last_transition_metadata = nil
-        @last_state_id_map = nil
-      end
+      extend self
 
-      # The new simplified approach - leverages the diagram gem's semantic structure
       def draw_machine(machine, io: $stdout, **options)
-        reset_metadata!
-        diagram = build_state_diagram(machine, options)
-        output_diagram(diagram, io, options)
-        diagram
+        builder = Diagram::Builder.new(machine, options)
+        builder.build
+        output_diagram(builder, io, options)
+        builder.diagram
       end
-      
-      def build_state_diagram(machine, options)
-        builder = StateMachines::Diagram::Builder.new(machine, options)
-        diagram = builder.build
 
-        @last_state_metadata = builder.state_metadata
-        @last_transition_metadata = builder.transition_metadata
-
-        diagram
-      end
-      
       # The state, the transitions into or out of it, and the states at
       # their other end
-      def draw_state(state, graph, options = {}, io = $stdout)
-        reset_metadata!
-        diagram = build_state_diagram(state.machine, options)
-        state_id = diagram_state_id(state)
-        io.puts(render_mermaid(diagram, options, focus: [state_id]) do |transition, _metadata|
-          [transition.source_state_id, transition.target_state_id].include?(state_id)
-        end)
-        diagram
+      def draw_state(state, _graph, options = {}, io = $stdout)
+        builder = Diagram::Builder.new(state.machine, options)
+        builder.build_state(state)
+        output_diagram(builder, io, options)
+        builder.diagram
       end
 
       # The transitions the event performs and the states they connect
-      def draw_event(event, graph, options = {}, io = $stdout)
-        reset_metadata!
-        diagram = build_state_diagram(event.machine, options)
-        event_name = event.name.to_s
-        io.puts(render_mermaid(diagram, options) { |_transition, metadata| metadata[:event] == event_name })
-        diagram
+      def draw_event(event, _graph, options = {}, io = $stdout)
+        builder = Diagram::Builder.new(event.machine, options)
+        builder.build_event(event)
+        output_diagram(builder, io, options)
+        builder.diagram
       end
-      
-      # The core method - just delegates to the mermaid gem's to_mermaid method
-      def output_diagram(diagram, io, options)
-        mermaid_syntax = render_mermaid(diagram, options)
-        io.puts mermaid_syntax
-        mermaid_syntax
+
+      # The transitions one branch performs and the states they connect.
+      # The core passes no options (Branch#draw).
+      def draw_branch(branch, _graph, event, _valid_states, io = $stdout)
+        builder = Diagram::Builder.new(event.machine)
+        builder.build_branch(branch, event)
+        output_diagram(builder, io, {})
+        builder.diagram
+      end
+
+      # Writes what +builder+ built as Mermaid and returns the text
+      def output_diagram(builder, io, options = {})
+        text = render(builder, options)
+        io.puts text
+        text
+      end
+
+      # The Mermaid text for what +builder+ built: front matter with the
+      # title, as the mermaid gem writes it, then the diagram
+      def render(builder, options = {})
+        format = options[:format]
+        raise ArgumentError, "unknown format #{format.inspect}; known: mermaid" unless format.nil? || format == :mermaid
+
+        diagram = builder.diagram
+        names = diagram.states.to_h { [it.id, safe_state_id(it.id)] }
+        [*front_matter(diagram.title), 'stateDiagram-v2',
+         *diagram.states.flat_map { state_lines(it, names.fetch(it.id), builder.state_metadata.fetch(it.id)) },
+         *builder.transition_metadata.map { transition_line(it, names, options) }].join("\n")
       end
 
       private
+
+      # YAML is read before entities are, so the title goes in as a JSON
+      # string; only Mermaid's own entity placeholders cannot survive the
+      # drawing step.
+      def front_matter(title)
+        return [] if title.nil?
+        if title.match?(::Mermaid::Renderer::PLACEHOLDERS)
+          raise ArgumentError, "Mermaid cannot show title #{title.inspect}"
+        end
+
+        ['---', "title: #{title.to_json}", '---']
+      end
+
+      # The declaration, then the initial and final markers: a state can be both
+      def state_lines(state, name, metadata)
+        lines = ["  #{state_declaration(state, name, metadata[:label])}"]
+        lines << "  [*] --> #{name}" if metadata[:initial]
+        lines << "  #{name} --> [*]" if metadata[:final]
+        lines
+      end
+
+      # Mermaid has no empty state name: `state "" as x` does not parse, and
+      # `x :` shows x. Refused rather than drawn as another name.
+      def state_declaration(state, name, label)
+        raise ArgumentError, 'Mermaid cannot show an empty state name' if label.empty?
+        return "#{name} : #{mermaid_text(label)}" if name == state.id
+
+        %(state "#{mermaid_text(label)}" as #{name})
+      end
+
+      def transition_line(metadata, names, options)
+        transition = metadata[:transition]
+        line = "  #{names.fetch(transition.source_state_id)} --> #{names.fetch(transition.target_state_id)}"
+        label = transition_label(metadata, options)
+        label.empty? ? line : "#{line} : #{mermaid_text(label)}"
+      end
+
+      # "label [conditions] / callbacks", with conditions and callbacks on request
+      def transition_label(metadata, options)
+        conditions = options[:show_conditions] ? condition_tokens(metadata[:conditions]) : []
+        callbacks = options[:show_callbacks] ? callback_tokens(metadata[:callbacks]) : []
+        [metadata[:label], ("[#{conditions.join(' && ')}]" if conditions.any?),
+         ("/ #{callbacks.join(', ')}" if callbacks.any?)].compact.reject(&:empty?).join(' ')
+      end
+
+      # if/unless conditions one by one, each one term; each state guard as
+      # one group under its kind, which says how its requirements combine
+      def condition_tokens(conditions)
+        conditions.flat_map do |kind, value|
+          next value.map { "#{kind} #{Diagram::Labels.condition_term(it)}" } if %i[if unless].include?(kind)
+
+          [Diagram::Labels.state_guard_token(kind, value)]
+        end
+      end
+
+      def callback_tokens(callbacks)
+        callbacks.flat_map { |type, labels| labels.map { "#{type} #{it}" } }
+      end
 
       # Text Mermaid shows as it is: model text never reaches its grammar raw.
       # Characters outside the mermaid gem's safe set become numeric entities
       # (#58;), which Mermaid decodes when it draws; spaces at either end too,
       # since the grammar trims them.
       def mermaid_text(value)
-        encoded = value.to_s.each_char.map { |char| char.match?(::Mermaid::Renderer::SAFE) ? char : "##{char.ord};" }.join
+        encoded = value.to_s.each_char.map do |char|
+          char.match?(::Mermaid::Renderer::SAFE) ? char : "##{char.ord};"
+        end.join
         encoded.sub(/\A +/) { |spaces| '#32;' * spaces.size }.sub(/ +\z/) { |spaces| '#32;' * spaces.size }
-      end
-
-      def diagram_state_id(state)
-        StateMachines::Diagram::Builder.state_id(state.name)
-      end
-
-      # Renders the diagram, or with a block only the transitions it keeps
-      # (given each transition and its builder metadata), the states they
-      # connect, and the +focus+ states.
-      def render_mermaid(diagram, options, focus: [], &keep)
-        return diagram.to_mermaid unless @last_transition_metadata
-
-        lines = ["stateDiagram-v2"]
-        state_id_map = mermaid_state_id_map(diagram)
-
-        # The builder records one metadata entry per transition, in order
-        transitions = diagram.transitions.zip(@last_transition_metadata)
-        states = diagram.states
-        if keep
-          transitions = transitions.select { |transition, metadata| keep.call(transition, metadata) }
-          shown = transitions.flat_map { |transition, _| [transition.source_state_id, transition.target_state_id] } | focus
-          states = states.select { |state| shown.include?(state.id) }
-        end
-
-        states.each do |state|
-          # The builder's metadata holds the name; the diagram holds no blank text
-          metadata = @last_state_metadata.fetch(state.id)
-          rendered_id = state_id_map.fetch(state.id)
-          lines << "  #{render_state_fragment(state, rendered_id, metadata[:label])}"
-
-          # A state can be both initial and final
-          lines << "  [*] --> #{rendered_id}" if metadata[:initial]
-          lines << "  #{rendered_id} --> [*]" if metadata[:final]
-        end
-
-        transitions.each do |transition, metadata|
-          lines << "  #{render_transition_line(transition, metadata, options)}"
-        end
-
-        lines.join("\n")
-      end
-
-      def render_transition_line(transition, metadata, options)
-        from_node = format_node_id(transition.source_state_id)
-        to_node = format_node_id(transition.target_state_id)
-
-        label_text = metadata[:label]
-
-        guard_fragment = ''
-        if options[:show_conditions]
-          condition_tokens = build_condition_tokens(metadata[:conditions])
-          guard_fragment = "[#{condition_tokens.join(' && ')}]" if condition_tokens.any?
-        end
-
-        action_fragment = ''
-        if options[:show_callbacks]
-          callback_tokens = build_callback_tokens(metadata[:callbacks])
-          action_fragment = "/ #{callback_tokens.join(', ')}" if callback_tokens.any?
-        end
-
-        parts = []
-        parts << label_text unless label_text.empty?
-        parts << guard_fragment unless guard_fragment.empty?
-        parts << action_fragment unless action_fragment.empty?
-        label = parts.join(' ')
-
-        if label.empty?
-          "#{from_node} --> #{to_node}"
-        else
-          "#{from_node} --> #{to_node} : #{mermaid_text(label)}"
-        end
-      end
-
-      # if/unless conditions one by one; each state guard as one group under
-      # its kind, which says how its requirements combine (any, all, none)
-      def build_condition_tokens(conditions)
-        return [] unless conditions.is_a?(Hash)
-
-        conditions.flat_map do |kind, value|
-          next [StateMachines::Diagram::Builder.state_guard_token(kind, value)] unless %i[if unless].include?(kind)
-
-          Array(value).filter_map do |token|
-            "#{kind} #{token}" unless token.nil? || token.to_s.empty?
-          end
-        end
-      end
-
-      def build_callback_tokens(callbacks)
-        return [] unless callbacks.is_a?(Hash)
-
-        tokens = []
-        callbacks.each do |type, names|
-          Array(names).each do |name|
-            next if name.nil? || name.to_s.empty?
-            tokens << "#{type} #{format_callback_reference(name)}"
-          end
-        end
-        tokens
-      end
-
-      def format_callback_reference(callback)
-        case callback
-        when Proc, Method
-          StateMachines::Diagram::Builder.callable_label(callback)
-        else
-          callback.to_s
-        end
-      end
-
-      def format_node_id(node_id)
-        return '[*]' if node_id == '*'
-
-        @last_state_id_map.fetch(node_id)
-      end
-
-      def mermaid_state_id_map(diagram)
-        @last_state_id_map ||= diagram.states.each_with_object({}) do |state, map|
-          map[state.id] = safe_state_id(state.id)
-        end
       end
 
       # A state id Mermaid reads as a plain name stays itself. Any other id,
@@ -202,25 +147,11 @@ module StateMachines
       # the nil state's id: it is not the state's name, and drawn as a plain
       # name it would show "nil_state" like the state named so.
       def safe_state_id(state_id)
-        value = state_id.to_s
-        return value if value.match?(::Mermaid::Renderer::PLAIN) && !value.match?(HEX_ALIAS) &&
-                        value != StateMachines::Diagram::Builder::NIL_STATE_ID &&
-                        !::Mermaid::Renderers::StateRenderer::RESERVED.include?(value.downcase)
+        return state_id if state_id.match?(::Mermaid::Renderer::PLAIN) && !state_id.match?(HEX_ALIAS) &&
+                           state_id != Diagram::Builder::NIL_STATE_ID &&
+                           !::Mermaid::Renderers::StateRenderer::RESERVED.include?(state_id.downcase)
 
-        "state_#{value.unpack1('H*')}"
-      end
-
-      # Mermaid has no empty state name: `state "" as x` does not parse, and
-      # `x :` shows x. Refused rather than drawn as another name.
-      def render_state_fragment(state, rendered_id, label)
-        raise ArgumentError, "Mermaid cannot show an empty state name" if label.empty?
-        return "#{rendered_id} : #{mermaid_text(label)}" if rendered_id == state.id
-
-        "state #{mermaid_string(label)} as #{rendered_id}"
-      end
-
-      def mermaid_string(value)
-        %("#{mermaid_text(value)}")
+        "state_#{state_id.unpack1('H*')}"
       end
     end
   end

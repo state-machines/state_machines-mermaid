@@ -34,15 +34,15 @@ class Order
     event :process do
       transition pending: :processing
     end
-    
+
     event :ship do
       transition processing: :shipped
     end
-    
+
     event :deliver do
       transition shipped: :delivered
     end
-    
+
     event :cancel do
       transition [:pending, :processing] => :cancelled
     end
@@ -53,9 +53,12 @@ end
 Order.state_machine(:status).draw
 ```
 
-This generates:
+This generates (the title goes in front matter, where Mermaid reads it):
 
 ```mermaid
+---
+title: "Order status State Machine"
+---
 stateDiagram-v2
   pending : pending
   [*] --> pending
@@ -80,7 +83,7 @@ class Character
     event :attack do
       transition idle: :combat, if: :has_weapon?
     end
-    
+
     event :rest do
       transition combat: :idle, unless: :in_danger?
     end
@@ -94,6 +97,9 @@ Character.state_machine(:status).draw(show_conditions: true)
 Output includes conditions (state guards such as `if_state:` too):
 
 ```mermaid
+---
+title: "Character status State Machine"
+---
 stateDiagram-v2
   idle : idle
   [*] --> idle
@@ -102,11 +108,43 @@ stateDiagram-v2
   combat --> idle : rest [unless in_danger?]
 ```
 
+An Array condition shows each of its conditions: `if: %i[armed ready]` reads
+`[if armed && if ready]`, as the core requires all of them (and none of an
+`unless:` Array). A String condition is code, shown as one term: `[if (a || b)]`.
+
 ### Show Callbacks
 
 ```ruby
+class Character
+  state_machine :status do
+    before_transition on: :attack, do: :draw_weapon
+    around_transition on: :attack, do: :stance
+    after_transition on: :attack, do: :shout
+  end
+end
+
 # Include callback information in the diagram
 Character.state_machine(:status).draw(show_callbacks: true)
+```
+
+Each transition lists the callbacks the core runs on it, before, around, then
+after:
+
+```mermaid
+  idle --> combat : attack / before draw_weapon, around stance, after shout
+```
+
+### Parts of a Machine
+
+The core draws one state, event or branch through the same renderer: the
+transitions it involves and the states they connect.
+
+```ruby
+machine = Character.state_machine(:status)
+
+machine.states[:combat].draw(nil, show_conditions: true)
+machine.events[:attack].draw(nil)
+machine.events[:rest].branches.first.draw(nil, machine.events[:rest], [])
 ```
 
 ### Output to File
@@ -132,29 +170,31 @@ The generated output is compatible with:
 class Dragon
   state_machine :mood, initial: :sleeping do
     state :sleeping, :hunting, :hoarding, :rampaging
-    
+
     event :wake_up do
       transition sleeping: :hunting, if: :hungry?
       transition sleeping: :hoarding, if: :treasure_nearby?
     end
-    
+
     event :find_treasure do
       transition hunting: :hoarding
-      transition hoarding: same  # Keep hoarding
+      transition hoarding: same # Keep hoarding
     end
-    
+
     event :enrage do
       transition any - :rampaging => :rampaging
     end
   end
 end
 
-puts Dragon.state_machine(:mood).draw
+Dragon.state_machine(:mood).draw(show_conditions: true)
 ```
 
 ## Features
 
-- Generates valid Mermaid state diagram syntax
+- Generates valid Mermaid state diagram syntax, checked with Mermaid's own parser
+- Puts the diagram title in front matter (`title:`), as the mermaid gem does
+- Draws a whole machine, or one state, event or branch (`Branch#draw`)
 - Marks the initial state and final states (states with no way out)
 - Shows transition conditions (if/unless and state guards) with `show_conditions: true`
 - Handles self-transitions (loopbacks)
@@ -164,11 +204,14 @@ puts Dragon.state_machine(:mood).draw
 - Text Mermaid would read as syntax (quotes, `;`, `#`, line breaks) is written
   as numeric entities (`#59;`), which Mermaid shows as the character
 - Optional callback visualization
-- Compatible with all state_machines features
+- Keeps no state between draws: each draw renders its own builder, so draws
+  from several threads never mix
+- `format:` other than `:mermaid` raises `ArgumentError`
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests.
+After checking out the repo, run `bundle install`, then `bundle exec rake` for the tests and RuboCop
+(`bundle exec rake minitest` runs the tests with plain Minitest).
 
 ## Contributing
 
