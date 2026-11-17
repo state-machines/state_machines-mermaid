@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    state_machines-mermaid (0.3.0)
+    state_machines-mermaid (0.4.0)
       diagram (>= 0.4)
       mermaid (>= 0.1)
       state_machines (>= 0.304.0)
