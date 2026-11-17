@@ -496,6 +496,23 @@ class MermaidRendererTest < Minitest::Test
     assert_includes io.string, "opened --> locked : close\n"
   end
 
+  def test_callbacks_follow_the_order_the_core_runs_them
+    klass = Class.new do
+      attr_accessor :state
+
+      state_machine :state, initial: :idle do
+        around_transition :wrap
+        before_transition :prepare
+        after_transition :log
+        event(:go) { transition idle: :done }
+      end
+    end
+    io = StringIO.new
+    StateMachines::Mermaid::Renderer.draw_machine(klass.state_machine(:state), io: io, show_callbacks: true)
+
+    assert_includes io.string, 'idle --> done : go / around wrap, before prepare, after log'
+  end
+
   def test_branch_draws_through_the_core
     machine = Vault.state_machine(:state)
     event = machine.events[:close]

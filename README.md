@@ -133,8 +133,9 @@ end
 Character.state_machine(:status).draw(show_callbacks: true)
 ```
 
-Each transition lists the callbacks the core runs on it, before, around, then
-after:
+Each transition lists the callbacks the core runs on it, in the order it runs
+them: before and around callbacks in declaration order (an around where it
+enters; it wraps what follows), then the after callbacks:
 
 ```mermaid
   idle --> combat : attack / before draw_weapon, around stance, after shout

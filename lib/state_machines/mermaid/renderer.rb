@@ -111,7 +111,7 @@ module StateMachines
       # "label [conditions] / callbacks", with conditions and callbacks on request
       def transition_label(metadata, options)
         conditions = options[:show_conditions] ? condition_tokens(metadata[:conditions]) : []
-        callbacks = options[:show_callbacks] ? callback_tokens(metadata[:callbacks]) : []
+        callbacks = options[:show_callbacks] ? callback_tokens(metadata[:callback_sequence]) : []
         [metadata[:label], ("[#{conditions.join(' && ')}]" if conditions.any?),
          ("/ #{callbacks.join(', ')}" if callbacks.any?)].compact.reject(&:empty?).join(' ')
       end
@@ -126,8 +126,11 @@ module StateMachines
         end
       end
 
-      def callback_tokens(callbacks)
-        callbacks.flat_map { |type, labels| labels.map { "#{type} #{it}" } }
+      # The callbacks in the order the core runs them: befores and arounds
+      # in declaration order, an around where it enters (it wraps what
+      # follows), then the afters
+      def callback_tokens(sequence)
+        sequence.reject { it[:phase] == :exit }.map { "#{it[:kind]} #{it[:text]}" }
       end
 
       # Text Mermaid shows as it is: model text never reaches its grammar raw.
