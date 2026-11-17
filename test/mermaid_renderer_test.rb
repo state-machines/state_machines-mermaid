@@ -501,7 +501,7 @@ class MermaidRendererTest < Minitest::Test
     event = machine.events[:close]
     io = StringIO.new
 
-    diagram = event.branches.last.draw(nil, event, [], io)
+    diagram = with_renderer(StateMachines::Mermaid::Renderer) { event.branches.last.draw(nil, event, [], io) }
 
     assert_kind_of Diagrams::StateDiagram, diagram
     assert_equal ['  locked : locked', '  [*] --> locked', '  locked --> locked : close'],
@@ -544,7 +544,29 @@ class MermaidRendererTest < Minitest::Test
     assert_empty StateMachines::Mermaid::Renderer.instance_variables
   end
 
+  def test_requiring_the_gem_leaves_the_global_renderer_alone
+    code = "require 'state_machines'; before = StateMachines::Machine.renderer; " \
+           "require 'state_machines-mermaid'; exit StateMachines::Machine.renderer.equal?(before)"
+
+    assert system(RbConfig.ruby, '-Ilib', '-e', code), 'requiring state_machines-mermaid changed Machine.renderer'
+  end
+
+  def test_machine_draw_uses_mermaid_once_chosen
+    io = StringIO.new
+    with_renderer(StateMachines::Mermaid::Renderer) { Vault.state_machine(:state).draw(io: io) }
+
+    assert_includes io.string, 'stateDiagram-v2'
+  end
+
   private
+
+  def with_renderer(renderer)
+    previous = StateMachines::Machine.instance_variable_get(:@renderer)
+    StateMachines::Machine.renderer = renderer
+    yield
+  ensure
+    StateMachines::Machine.renderer = previous
+  end
 
   def render(machine)
     io = StringIO.new

@@ -26,8 +26,14 @@ Or install it yourself as:
 
 ### Basic Usage
 
+Requiring the gem changes no global state. Choose the Mermaid renderer for
+`Machine#draw` (and `State`, `Event` and `Branch#draw`), as the core intends,
+or call `StateMachines::Mermaid::Renderer.draw_machine(machine)` directly.
+
 ```ruby
 require 'state_machines-mermaid'
+
+StateMachines::Machine.renderer = StateMachines::Mermaid::Renderer
 
 class Order
   state_machine :status, initial: :pending do
