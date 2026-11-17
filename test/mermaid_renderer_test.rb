@@ -341,4 +341,90 @@ class MermaidRendererTest < Minitest::Test
       end
     end
   end
+  def test_renders_names_a_diagram_cannot_hold
+    klass = Class.new do
+      attr_accessor :state
+
+      state_machine :state, initial: :idle do
+        state nil, :nil_state
+
+        event :go do
+          transition idle: :"*"
+        end
+
+        event :" " do
+          transition :"*" => nil
+        end
+
+        event :"" do
+          transition nil => :nil_state
+        end
+      end
+    end
+
+    io = StringIO.new
+    StateMachines::Mermaid::Renderer.draw_machine(klass.state_machine(:state), io: io)
+
+    output = io.string
+    assert_includes output, 'state "*" as state_253261'
+    assert_includes output, 'idle --> state_253261 : go'
+    assert_includes output, 'state_253261 --> nil_state : #32;'
+    assert_includes output, 'state "nil_state" as state_25366536393663356637333734363137343635'
+    assert_includes output, "nil_state --> state_25366536393663356637333734363137343635\n"
+  end
+
+  def test_refuses_an_empty_state_name
+    klass = Class.new do
+      attr_accessor :state
+
+      state_machine :state, initial: :""
+    end
+
+    error = assert_raises(ArgumentError) do
+      StateMachines::Mermaid::Renderer.draw_machine(klass.state_machine(:state), io: StringIO.new)
+    end
+    assert_equal 'Mermaid cannot show an empty state name', error.message
+  end
+
+  def test_marks_a_state_both_initial_and_final
+    klass = Class.new do
+      attr_accessor :state
+
+      state_machine :state, initial: :alone
+    end
+
+    io = StringIO.new
+    StateMachines::Mermaid::Renderer.draw_machine(klass.state_machine(:state), io: io)
+
+    assert_includes io.string, '[*] --> alone'
+    assert_includes io.string, 'alone --> [*]'
+  end
+
+  def test_keeps_each_state_guard_group_with_its_kind
+    klass = Class.new do
+      attr_accessor :state, :gate, :alarm
+
+      state_machine :gate, initial: :closed do
+        state :open
+      end
+
+      state_machine :alarm, initial: :off do
+        state :on
+      end
+
+      state_machine :state, initial: :idle do
+        event :check do
+          transition idle: :done, if_any_state: { gate: :open, alarm: :on },
+                                  unless_all_states: { gate: :closed, alarm: :off }
+        end
+      end
+    end
+
+    io = StringIO.new
+    StateMachines::Mermaid::Renderer.draw_machine(klass.state_machine(:state), io: io, show_conditions: true)
+
+    assert_includes io.string,
+                    'idle --> done : check [unless_all_states (gate=closed, alarm=off) #38;#38; ' \
+                    'if_any_state (gate=open, alarm=on)]'
+  end
 end

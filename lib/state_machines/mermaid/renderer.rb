@@ -77,9 +77,8 @@ module StateMachines
         encoded.sub(/\A +/) { |spaces| '#32;' * spaces.size }.sub(/ +\z/) { |spaces| '#32;' * spaces.size }
       end
 
-      # The builder's state id (Builder#state_id)
       def diagram_state_id(state)
-        state.name ? state.name.to_s : 'nil_state'
+        StateMachines::Diagram::Builder.state_id(state.name)
       end
 
       # Renders the diagram, or with a block only the transitions it keeps
@@ -101,12 +100,14 @@ module StateMachines
         end
 
         states.each do |state|
-          fragment = render_state_fragment(state, state_id_map.fetch(state.id))
-          lines << "  #{fragment}" if fragment && !fragment.empty?
+          # The builder's metadata holds the name; the diagram holds no blank text
+          metadata = @last_state_metadata.fetch(state.id)
+          rendered_id = state_id_map.fetch(state.id)
+          lines << "  #{render_state_fragment(state, rendered_id, metadata[:label])}"
 
-          metadata = @last_state_metadata[state.id] || {}
-          lines << "  [*] --> #{state_id_map.fetch(state.id)}" if metadata[:type] == 'initial'
-          lines << "  #{state_id_map.fetch(state.id)} --> [*]" if metadata[:type] == 'final'
+          # A state can be both initial and final
+          lines << "  [*] --> #{rendered_id}" if metadata[:initial]
+          lines << "  #{rendered_id} --> [*]" if metadata[:final]
         end
 
         transitions.each do |transition, metadata|
@@ -120,19 +121,16 @@ module StateMachines
         from_node = format_node_id(transition.source_state_id)
         to_node = format_node_id(transition.target_state_id)
 
-        label_text = ''
-
-        base_label = transition.label
-        label_text = base_label if base_label && !base_label.empty?
+        label_text = metadata[:label]
 
         guard_fragment = ''
-        if options[:show_conditions] && metadata
+        if options[:show_conditions]
           condition_tokens = build_condition_tokens(metadata[:conditions])
           guard_fragment = "[#{condition_tokens.join(' && ')}]" if condition_tokens.any?
         end
 
         action_fragment = ''
-        if options[:show_callbacks] && metadata
+        if options[:show_callbacks]
           callback_tokens = build_callback_tokens(metadata[:callbacks])
           action_fragment = "/ #{callback_tokens.join(', ')}" if callback_tokens.any?
         end
@@ -150,11 +148,15 @@ module StateMachines
         end
       end
 
+      # if/unless conditions one by one; each state guard as one group under
+      # its kind, which says how its requirements combine (any, all, none)
       def build_condition_tokens(conditions)
         return [] unless conditions.is_a?(Hash)
 
-        %i[if unless if_state unless_state if_all_states unless_all_states if_any_state unless_any_state].flat_map do |kind|
-          Array(conditions[kind]).filter_map do |token|
+        conditions.flat_map do |kind, value|
+          next [StateMachines::Diagram::Builder.state_guard_token(kind, value)] unless %i[if unless].include?(kind)
+
+          Array(value).filter_map do |token|
             "#{kind} #{token}" unless token.nil? || token.to_s.empty?
           end
         end
@@ -205,8 +207,10 @@ module StateMachines
         "state_#{value.unpack1('H*')}"
       end
 
-      def render_state_fragment(state, rendered_id)
-        label = state.label || state.id
+      # Mermaid has no empty state name: `state "" as x` does not parse, and
+      # `x :` shows x. Refused rather than drawn as another name.
+      def render_state_fragment(state, rendered_id, label)
+        raise ArgumentError, "Mermaid cannot show an empty state name" if label.empty?
         return "#{rendered_id} : #{mermaid_text(label)}" if rendered_id == state.id
 
         "state #{mermaid_string(label)} as #{rendered_id}"
